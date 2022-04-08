@@ -1,12 +1,11 @@
 package ru.clevertec.collections;
 
-import java.util.LinkedList;
-
 public class CustomLinkedList <T> implements CustomList<T>, CustomDeque<T> {
 
     private int size;
     private Node<T> head;
     private Node<T> tail;
+    private int maxSize;
 
     public CustomLinkedList() {}
 
@@ -50,12 +49,10 @@ public class CustomLinkedList <T> implements CustomList<T>, CustomDeque<T> {
             tail.previousItem = node;
 
         }else {
-            Node<T> tNode = node;
-            node = new Node<>(t, tNode, node.previousItem);
-            tNode.previousItem = node;
-            node.previousItem.nextItem = node;
+            addLast(t);
         }
         size++;
+        checkForExceedingMaxSize();
         return true;
     }
 
@@ -66,33 +63,25 @@ public class CustomLinkedList <T> implements CustomList<T>, CustomDeque<T> {
     }
 
     @Override
-    public boolean remove(Object o) {
+    public boolean removeByObject(Object o) {
         Node<T> node = head;
-        int counter = 0;
 
         if (o == null) {
-            while (node.nextItem!=null){
-                if (counter <= size){
-                    if (node.value == null){
-                        remove(counter);
-                        return true;
-                    }
-                    counter++;
+            for(int i = 0; i < size; i++){
+                if (node.value == null){
+                    removeByIndex(i);
+                    return true;
                 }else {
-                    throw new IndexOutOfBoundsException();
+                    node = node.nextItem;
                 }
-
             }
         } else {
-            while (node.nextItem!=null){
-                if (counter <= size){
-                    if (o.equals(node.value)){
-                        remove(counter);
-                        return true;
-                    }
-                    counter++;
+            for (int i = 0; i < size; i++){
+                if (o.equals(node.value)){
+                    removeByIndex(i);
+                    return true;
                 }else {
-                    throw new IndexOutOfBoundsException();
+                    node = node.nextItem;
                 }
             }
         }
@@ -101,7 +90,7 @@ public class CustomLinkedList <T> implements CustomList<T>, CustomDeque<T> {
 
 
     @Override
-    public boolean remove(int index) {
+    public boolean removeByIndex(int index) {
         checkingIfCollectionIsEmpty();
 
         int counter = 0;
@@ -158,12 +147,88 @@ public class CustomLinkedList <T> implements CustomList<T>, CustomDeque<T> {
         return node.value;
     }
 
+
+    @Override
+    public void trim() {
+        Node<T> node = head;
+        for (int i = 0; i < size; i++){
+            if (node.value == null){
+                removeByObject(null);
+            }
+            node = node.nextItem;
+        }
+    }
+
+    @Override
+    public int find(Object o) {
+        Node<T> node = head;
+        if (o == null){
+            for (int i = 0; i < size; i++){
+                if (node.value == null){
+                    return i;
+                } else {
+                    node = node.nextItem;
+                }
+            }
+        }else {
+            for (int i = 0; i < size; i++){
+                if (o.equals(node.value)){
+                    return i;
+                } else {
+                    node = node.nextItem;
+                }
+            }
+        }
+        return -1;
+    }
+
+    @Override
+    public Object[] toArray() {
+        Object array[] = new Object[size];
+        Node<T> node = head;
+        for (int i = 0; i < size; i++){
+            array[i] = node.value;
+            node = node.nextItem;
+        }
+        return array;
+    }
+
+    @Override
+    public <S> S[] toArray(S[] a) {
+        Object array[] = a;
+        Node<T> node = head;
+        for (int i = 0; i < size; i++){
+            array[i] = node.value;
+            node = node.nextItem;
+        }
+        return a;
+    }
+
+    @Override
+    public T set(int index, T t) {
+        Node<T> node = findNode(index);
+        node.value = t;
+        return node.value;
+    }
+
+    @Override
+    public void setMaxSize(int maxSize) {
+        this.maxSize = maxSize;
+    }
+
+    public void checkForExceedingMaxSize(){
+        if (size > maxSize && maxSize!=0){
+            throw new IndexOutOfBoundsException();
+        }
+    }
+
     @Override
     public void addFirst(T t) {
         if (head == null){
             head = new Node<>(t, null, null);
             tail = head;
             size++;
+            checkForExceedingMaxSize();
             return;
         }
 
@@ -172,14 +237,17 @@ public class CustomLinkedList <T> implements CustomList<T>, CustomDeque<T> {
         first.previousItem = newNode;
         head = newNode;
         size++;
+        checkForExceedingMaxSize();
     }
 
     @Override
     public void addLast(T t) {
+        //checkForExceedingMaxSize();
         if (head == null){
             head = new Node<>(t, null, null);
             tail = head;
             size++;
+            checkForExceedingMaxSize();
             return;
         }
 
@@ -190,6 +258,21 @@ public class CustomLinkedList <T> implements CustomList<T>, CustomDeque<T> {
         newNode.nextItem = new Node<>(t, null, newNode);
         tail = newNode.nextItem;
         size++;
+        checkForExceedingMaxSize();
+    }
+
+    public Node<T> findNode(int index){
+        Node<T> node;
+        if (index < (size/2)){
+            node = head;
+            for (int i = 0; i < index; i++)
+                node = node.nextItem;
+        } else {
+            node = tail;
+            for (int i = size - 1; i > index; i--)
+                node = node.previousItem;
+        }
+        return node;
     }
 
     @Override
@@ -247,6 +330,39 @@ public class CustomLinkedList <T> implements CustomList<T>, CustomDeque<T> {
             }else
                 return value + "";
         }
+    }
+
+    public CustomIterator<T> iterator() {
+        CustomIterator<T> it = new CustomIterator<T>() {
+            private int currentIndex = 0;
+            @Override
+            public boolean hasNext() {
+                checkingIfCollectionIsEmpty();
+                return currentIndex < size;
+            }
+
+            @Override
+            public T next() {
+                return getByIndex(currentIndex++);
+            }
+
+            @Override
+            public boolean remove() {
+                return removeByIndex(currentIndex);
+            }
+
+            @Override
+            public void addBefore(T t) {
+                checkingIfCollectionIsEmpty();
+                add(currentIndex--, t);
+            }
+
+            @Override
+            public void addAfter(T t) {
+                add(currentIndex++, t);
+            }
+        };
+        return it;
     }
 
     @Override
